@@ -7,7 +7,7 @@ from app.services.groq_client import get_llm
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.utils import merge_json_safely
 from app.agent.tools import tool_followup_suggestions, tool_compliance_check
-
+import re
 from datetime import datetime
 try:
     from zoneinfo import ZoneInfo
@@ -85,43 +85,55 @@ def draft_update_node(state: AgentState) -> AgentState:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     draft = state.get("draft", {}) or {}
 
-    # 1️⃣ Merge model output into draft
+    # 1) Merge model output into draft
     draft = merge_into_draft(draft, parsed)
-    
+
+    # 2) Ensure HCP name keeps "Dr."
     name = str(draft.get("hcp_name", "")).strip()
-    if name and not name.lower().startswith("dr"):
-        draft["hcp_name"] = f"Dr. {name}"
+    if name:
+        low = name.lower()
+        if low.startswith("doctor "):
+            draft["hcp_name"] = "Dr. " + name[7:].strip()
+        elif not low.startswith("dr"):
+            draft["hcp_name"] = f"Dr. {name}"
 
     # Helper: current datetime
     def _now():
-        if ZoneInfo:
-            return datetime.now(ZoneInfo("Asia/Kolkata"))
-        return datetime.now()
+        return datetime.now(ZoneInfo("Asia/Kolkata")) if ZoneInfo else datetime.now()
 
-    # 2️⃣ Normalize date EARLY (handle "today", "today at ...", etc.)
+    today_str = _now().strftime("%Y-%m-%d")
+
+    # 3) Normalize date robustly (handles "today", "today,", "today at ...", etc.)
     raw_date = str(draft.get("date", "")).strip().lower()
-    if raw_date.startswith("today") or raw_date in ["now", "todays", "today's"]:
-        draft["date"] = _now().strftime("%Y-%m-%d")
+    if re.search(r"\btoday\b", raw_date) or raw_date in ["now", "todays", "today's"]:
+        draft["date"] = today_str
 
-    # 3️⃣ If date still missing, auto-fill today
+    # If date still missing, auto-fill today
     if not draft.get("date"):
-        draft["date"] = _now().strftime("%Y-%m-%d")
+        draft["date"] = today_str
 
-    # 4️⃣ Time convenience mapping
+    # 4) If model put "today ..." into occurred_at, strip it and keep only time if present
+    raw_occ = str(draft.get("occurred_at", "")).strip().lower()
+    if re.search(r"\btoday\b", raw_occ):
+        m = re.search(r"(\d{1,2}:\d{2}\s*(am|pm)?)", raw_occ, re.IGNORECASE)
+        draft["occurred_at"] = m.group(1) if m else ""
+
+    # 5) Time convenience mapping
     if (not draft.get("time")) and draft.get("occurred_at"):
-        occ = str(draft.get("occurred_at"))
-        if len(occ) <= 8:  # "16:30" or "4:30 PM"
+        occ = str(draft.get("occurred_at")).strip()
+        # allow "16:30" or "4:30 PM"
+        if re.search(r"\d{1,2}:\d{2}", occ):
             draft["time"] = occ
 
-    # 5️⃣ Suggestions + compliance
+    # 6) Suggestions + compliance (tools #4 and #5)
     draft["_ai_suggestions"] = tool_followup_suggestions(draft)
     draft["_compliance"] = tool_compliance_check(draft)
 
-    # 6️⃣ Update state
+    # 7) Update state
     state["draft"] = draft
     state["tool_used"] = "DraftUpdate"
 
-    # 7️⃣ Assistant message
+    # 8) Assistant message
     if not draft.get("hcp_id") and not draft.get("hcp_name"):
         state["assistant_message"] = (
             "Draft updated. Please mention the HCP name (e.g., 'Met Dr. Asha Sharma...') so I can log it."

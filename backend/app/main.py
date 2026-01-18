@@ -3,7 +3,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.db.models import Base
 from app.db.session import engine
 from app.api.routes_hcps import router as hcps_router
-from app.api.routes_interactions import router as interactions_router
 from app.api.routes_agent import router as agent_router
 
 def create_app():
@@ -20,7 +19,6 @@ def create_app():
     Base.metadata.create_all(bind=engine)
 
     app.include_router(hcps_router)
-    app.include_router(interactions_router)
     app.include_router(agent_router)
 
     return app

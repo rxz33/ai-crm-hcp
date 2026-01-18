@@ -20,21 +20,12 @@ router = APIRouter(prefix="/agent", tags=["agent"])
 # ----------------------------
 @router.post("/chat")
 def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[str, Any]:
-    """
-    Expected payload:
-    {
-      "mode": "draft",
-      "message": "...",
-      "draft": {...}
-    }
-    """
     message = (payload.get("message") or "").strip()
     if not message:
         raise HTTPException(status_code=400, detail="message is required")
 
     draft = payload.get("draft") or {}
 
-    # Run graph: it extracts/merges and sets tool_used + assistant_message
     state_in = {
         "message": message,
         "mode": payload.get("mode") or "draft",
@@ -50,46 +41,49 @@ def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[s
     tool_used = state_out.get("tool_used", "DraftUpdate")
     assistant_message = state_out.get("assistant_message", "")
 
-    # If graph captured edit intent, optionally execute edit immediately
-    # (chat-only UX: user says sorry/change, backend edits without interaction_id)
+    # ---- Edit intent: execute edit immediately (no interaction_id in UI) ----
     if tool_used == "EditInteraction" and updated_draft.get("_edit_payload"):
-        ep = updated_draft["_edit_payload"]
+        ep = updated_draft["_edit_payload"] or {}
+
+        # ✅ fallback: if user didn't repeat the HCP name in edit message, use current draft hcp_name
+        hcp_name_for_edit = ep.get("hcp_name") or updated_draft.get("hcp_name")
+        hcp_id_for_edit = ep.get("hcp_id") or updated_draft.get("hcp_id")
+
         result = tool_edit_latest_interaction(
             db=db,
-            hcp_id=ep.get("hcp_id"),
-            hcp_name=ep.get("hcp_name"),
+            hcp_id=hcp_id_for_edit,
+            hcp_name=hcp_name_for_edit,
             fields_to_update=ep.get("fields_to_update") or {},
         )
+
         if "error" in result:
             assistant_message = result["error"]
         else:
-            assistant_message = result["message"]
-            updated_draft["_last_edited_interaction_id"] = result["interaction_id"]
-            
-            # ✅ Refresh the UI draft from latest DB record
-        hcp_id_for_ctx = result.get("hcp_id") or updated_draft.get("hcp_id")
+            assistant_message = result.get("message", "Updated latest interaction.")
+            updated_draft["_last_edited_interaction_id"] = result.get("interaction_id")
 
-        # if we still don't have hcp_id, resolve via name from draft
-        if not hcp_id_for_ctx and updated_draft.get("hcp_name"):
-    # resolve HCP by name (tool already has helper internally; easiest is call context by name)
-            ctx = tool_retrieve_hcp_context(db, hcp_id=None, hcp_name=updated_draft.get("hcp_name"))
-        else:
-            ctx = tool_retrieve_hcp_context(db, hcp_id=hcp_id_for_ctx, hcp_name=None)
+            # ✅ Refresh UI draft from latest DB record
+            # Prefer hcp_id if available; else use hcp_name
+            ctx = None
+            hcp_id_for_ctx = result.get("hcp_id") or hcp_id_for_edit or updated_draft.get("hcp_id")
 
-        if "latest_interactions" in ctx and ctx["latest_interactions"]:
-            latest = ctx["latest_interactions"][0]
+            if hcp_id_for_ctx:
+                ctx = tool_retrieve_hcp_context(db, hcp_id=hcp_id_for_ctx, hcp_name=None)
+            elif hcp_name_for_edit:
+                ctx = tool_retrieve_hcp_context(db, hcp_id=None, hcp_name=hcp_name_for_edit)
 
-            # overwrite draft fields from DB
-            for k in [
-                "interaction_type","date","time","attendees","topics_discussed",
-                "materials_shared","samples_distributed","consent_required",
-                "occurred_at","sentiment","products_discussed","summary","outcomes","follow_ups"
-            ]:
-                if k in latest:
-                    updated_draft[k] = latest[k]
+            if ctx and "latest_interactions" in ctx and ctx["latest_interactions"]:
+                latest = ctx["latest_interactions"][0]
 
+                for k in [
+                    "interaction_type", "date", "time", "attendees", "topics_discussed",
+                    "materials_shared", "samples_distributed", "consent_required",
+                    "occurred_at", "sentiment", "products_discussed", "summary", "outcomes", "follow_ups"
+                ]:
+                    if k in latest:
+                        updated_draft[k] = latest[k]
 
-        # cleanup internal payload so UI doesn't show it
+        # cleanup so UI never shows internal payload
         updated_draft.pop("_edit_payload", None)
 
     return {

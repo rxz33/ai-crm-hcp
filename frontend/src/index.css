@@ -1,0 +1,21 @@
+/* Global look like the reference UI */
+html, body {
+  height: 100%;
+}
+
+:root {
+  font-size: 15px;
+  font-family:Google Inter;
+}
+
+body {
+  margin: 0;
+  background: #f5f7fb;
+  color: #0f172a; /* slate-900 */
+  font-family:Google Inter;
+  font-size: 15;
+}
+
+* {
+  box-sizing: border-box;
+}

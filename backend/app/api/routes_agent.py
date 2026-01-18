@@ -67,7 +67,15 @@ def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[s
             updated_draft["_last_edited_interaction_id"] = result["interaction_id"]
             
             # ✅ Refresh the UI draft from latest DB record
-        ctx = tool_retrieve_hcp_context(db, hcp_id=result["hcp_id"], hcp_name=None)
+        hcp_id_for_ctx = result.get("hcp_id") or updated_draft.get("hcp_id")
+
+        # if we still don't have hcp_id, resolve via name from draft
+        if not hcp_id_for_ctx and updated_draft.get("hcp_name"):
+    # resolve HCP by name (tool already has helper internally; easiest is call context by name)
+            ctx = tool_retrieve_hcp_context(db, hcp_id=None, hcp_name=updated_draft.get("hcp_name"))
+        else:
+            ctx = tool_retrieve_hcp_context(db, hcp_id=hcp_id_for_ctx, hcp_name=None)
+
         if "latest_interactions" in ctx and ctx["latest_interactions"]:
             latest = ctx["latest_interactions"][0]
 

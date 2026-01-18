@@ -10,8 +10,10 @@ Schema (include keys only when confident):
   "action": "draft" | "log" | "edit",
   "hcp_name": string,
   "interaction_type": string,
-  "date": "YYYY-MM-DD",
-  "time": "HH:MM",
+
+  "date": "YYYY-MM-DD" | "today", 
+  "time": "HH:MM" | "h:mm AM/PM",
+
   "attendees": string,
   "topics_discussed": string,
   "materials_shared": string,
@@ -26,6 +28,7 @@ Schema (include keys only when confident):
 }
 
 Rules:
+- If the user says "today", set "date": "today" (do NOT guess the numeric date).
 - If user is correcting or updating (e.g., "sorry", "actually", "change", "update"):
   action="edit" and include hcp_name if present and fields_to_update.
 - If user says "log/save/submit":

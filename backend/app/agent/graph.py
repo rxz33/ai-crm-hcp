@@ -1,4 +1,7 @@
-from typing import Any, Dict, TypedDict, Optional
+from typing import Any, Dict, TypedDict
+
+import re
+from datetime import datetime
 
 from langgraph.graph import StateGraph, END
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -6,13 +9,13 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from app.services.groq_client import get_llm
 from app.agent.prompts import SYSTEM_PROMPT
 from app.agent.utils import merge_json_safely
-from app.agent.tools import tool_followup_suggestions, tool_compliance_check
-import re
-from datetime import datetime
+from app.agent.tools import tool_suggestions_and_compliance_llm
+
 try:
     from zoneinfo import ZoneInfo
 except Exception:
     ZoneInfo = None
+
 
 class AgentState(TypedDict):
     message: str
@@ -29,34 +32,8 @@ class AgentState(TypedDict):
     assistant_message: str
 
 
-llm = get_llm()
-
-
-# ----------------------------
-# Node 1: Extract (LLM -> JSON)
-# ----------------------------
-def extract_node(state: AgentState) -> AgentState:
-    prompt = [
-        SystemMessage(content=SYSTEM_PROMPT),
-        HumanMessage(
-            content=(
-                "User message:\n"
-                f"{state.get('message','')}\n\n"
-                "Current draft JSON:\n"
-                f"{state.get('draft', {})}\n\n"
-                "Return ONLY JSON."
-            )
-        ),
-    ]
-    resp = llm.invoke(prompt)
-    raw = (resp.content or "").strip()
-
-    parsed = merge_json_safely(raw)
-
-    state["extracted"] = {"raw": raw, "parsed": parsed}
-    state["tool_used"] = "Extract"
-    state["assistant_message"] = "Noted."
-    return state
+# Use extract model for extraction step
+llm = get_llm("extract")
 
 
 # ----------------------------
@@ -79,16 +56,15 @@ def merge_into_draft(draft: Dict[str, Any], parsed: Dict[str, Any]) -> Dict[str,
 
 
 # ----------------------------
-# Node 2: Draft Update (merge + suggestions + compliance)
+# Helper: Normalize draft fields (runs on ALL paths)
 # ----------------------------
-def draft_update_node(state: AgentState) -> AgentState:
-    parsed = state.get("extracted", {}).get("parsed", {}) or {}
-    draft = state.get("draft", {}) or {}
+def normalize_draft_fields(draft: Dict[str, Any]) -> Dict[str, Any]:
+    def _now():
+        return datetime.now(ZoneInfo("Asia/Kolkata")) if ZoneInfo else datetime.now()
 
-    # 1) Merge model output into draft
-    draft = merge_into_draft(draft, parsed)
+    today_str = _now().strftime("%Y-%m-%d")
 
-    # 2) Ensure HCP name keeps "Dr."
+    # Ensure HCP name keeps "Dr."
     name = str(draft.get("hcp_name", "")).strip()
     if name:
         low = name.lower()
@@ -97,13 +73,7 @@ def draft_update_node(state: AgentState) -> AgentState:
         elif not low.startswith("dr"):
             draft["hcp_name"] = f"Dr. {name}"
 
-    # Helper: current datetime
-    def _now():
-        return datetime.now(ZoneInfo("Asia/Kolkata")) if ZoneInfo else datetime.now()
-
-    today_str = _now().strftime("%Y-%m-%d")
-
-    # 3) Normalize date robustly (handles "today", "today,", "today at ...", etc.)
+    # Normalize date robustly (handles "today", "today,", "today at ...", etc.)
     raw_date = str(draft.get("date", "")).strip().lower()
     if re.search(r"\btoday\b", raw_date) or raw_date in ["now", "todays", "today's"]:
         draft["date"] = today_str
@@ -112,28 +82,66 @@ def draft_update_node(state: AgentState) -> AgentState:
     if not draft.get("date"):
         draft["date"] = today_str
 
-    # 4) If model put "today ..." into occurred_at, strip it and keep only time if present
+    # If model put "today ..." into occurred_at, strip it and keep only time if present
     raw_occ = str(draft.get("occurred_at", "")).strip().lower()
     if re.search(r"\btoday\b", raw_occ):
         m = re.search(r"(\d{1,2}:\d{2}\s*(am|pm)?)", raw_occ, re.IGNORECASE)
         draft["occurred_at"] = m.group(1) if m else ""
 
-    # 5) Time convenience mapping
+    # Time convenience mapping
     if (not draft.get("time")) and draft.get("occurred_at"):
         occ = str(draft.get("occurred_at")).strip()
-        # allow "16:30" or "4:30 PM"
         if re.search(r"\d{1,2}:\d{2}", occ):
             draft["time"] = occ
 
-    # 6) Suggestions + compliance (tools #4 and #5)
-    draft["_ai_suggestions"] = tool_followup_suggestions(draft)
-    draft["_compliance"] = tool_compliance_check(draft)
+    return draft
 
-    # 7) Update state
+
+# ----------------------------
+# Node 1: Extract (LLM -> JSON)
+# ----------------------------
+def extract_node(state: AgentState) -> AgentState:
+    prompt = [
+        SystemMessage(content=SYSTEM_PROMPT),
+        HumanMessage(
+            content=(
+                "User message:\n"
+                f"{state.get('message','')}\n\n"
+                "Current draft JSON:\n"
+                f"{state.get('draft', {})}\n\n"
+                "Return ONLY JSON."
+            )
+        ),
+    ]
+    resp = llm.invoke(prompt)
+    raw = (resp.content or "").strip()
+    parsed = merge_json_safely(raw)
+
+    state["extracted"] = {"raw": raw, "parsed": parsed}
+    state["tool_used"] = "Extract"
+    state["assistant_message"] = "Noted."
+    return state
+
+
+# ----------------------------
+# Node 2: Draft Update (merge + normalize + suggestions + compliance)
+# ----------------------------
+def draft_update_node(state: AgentState) -> AgentState:
+    parsed = state.get("extracted", {}).get("parsed", {}) or {}
+    draft = state.get("draft", {}) or {}
+
+    # Merge and normalize
+    draft = merge_into_draft(draft, parsed)
+    draft = normalize_draft_fields(draft)
+
+    # Suggestions + compliance (LLM tool call, fast single call)
+    combo = tool_suggestions_and_compliance_llm(draft)
+    draft["_ai_suggestions"] = combo["_ai_suggestions"]
+    draft["_compliance"] = combo["_compliance"]
+
     state["draft"] = draft
     state["tool_used"] = "DraftUpdate"
 
-    # 8) Assistant message
     if not draft.get("hcp_id") and not draft.get("hcp_name"):
         state["assistant_message"] = (
             "Draft updated. Please mention the HCP name (e.g., 'Met Dr. Asha Sharma...') so I can log it."
@@ -143,6 +151,7 @@ def draft_update_node(state: AgentState) -> AgentState:
 
     return state
 
+
 # ----------------------------
 # Node 3: Edit intent packaging (no DB write here)
 # ----------------------------
@@ -150,27 +159,26 @@ def edit_intent_node(state: AgentState) -> AgentState:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     draft = state.get("draft", {}) or {}
 
-    # We store the edit payload inside draft for the API layer to execute:
-    # - hcp_name/hcp_id can come from parsed or existing draft
-    # - fields_to_update comes from parsed
     fields_to_update = parsed.get("fields_to_update") or {}
 
+    # Store edit payload for API layer to execute (no interaction_id in UI)
     draft["_edit_payload"] = {
         "hcp_id": parsed.get("hcp_id") or draft.get("hcp_id"),
         "hcp_name": parsed.get("hcp_name") or draft.get("hcp_name"),
         "fields_to_update": fields_to_update,
     }
 
-    # Also merge any extracted regular fields into draft for UI display
+    # Merge, normalize, and compute suggestions/compliance for UI preview
     draft = merge_into_draft(draft, parsed)
+    draft = normalize_draft_fields(draft)
 
-    # Update suggestions/compliance for UI preview
-    draft["_ai_suggestions"] = tool_followup_suggestions(draft)
-    draft["_compliance"] = tool_compliance_check(draft)
+    combo = tool_suggestions_and_compliance_llm(draft)
+    draft["_ai_suggestions"] = combo["_ai_suggestions"]
+    draft["_compliance"] = combo["_compliance"]
 
     state["draft"] = draft
     state["tool_used"] = "EditInteraction"
-    state["assistant_message"] = "Edit request captured. Say 'apply edit' or click Edit in backend flow."
+    state["assistant_message"] = "Edit request captured. I will update the latest interaction for this HCP."
     return state
 
 
@@ -181,12 +189,12 @@ def log_intent_node(state: AgentState) -> AgentState:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     draft = state.get("draft", {}) or {}
 
-    # Merge extracted fields in case message contains missing bits
     draft = merge_into_draft(draft, parsed)
+    draft = normalize_draft_fields(draft)
 
-    # suggestions/compliance for UI
-    draft["_ai_suggestions"] = tool_followup_suggestions(draft)
-    draft["_compliance"] = tool_compliance_check(draft)
+    combo = tool_suggestions_and_compliance_llm(draft)
+    draft["_ai_suggestions"] = combo["_ai_suggestions"]
+    draft["_compliance"] = combo["_compliance"]
 
     state["draft"] = draft
     state["tool_used"] = "LogInteraction"

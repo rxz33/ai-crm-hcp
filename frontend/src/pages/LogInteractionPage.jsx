@@ -111,11 +111,42 @@ export default function LogInteractionPage() {
   const chat = useSelector((s) => s.chat);
 
   const [chatInput, setChatInput] = useState("");
+  const [hcpContext, setHcpContext] = useState(null);
 
   function resetAll() {
     dispatch(resetDraft());
     dispatch(resetChat());
     setChatInput("");
+  }
+
+  async function toolHcpContextFrontend() {
+    const name = (draft.hcp_name || "").trim();
+    if (!name) {
+      dispatch(addMessage({ role: "assistant", content: "Please mention the HCP name in chat first (e.g., Dr. Asha Sharma)." }));
+      return;
+    }
+
+    try {
+      const res = await axios.get(`${API}/agent/tools/hcp-context`, {
+        params: { hcp_name: name },
+      });
+
+      setHcpContext(res.data);
+
+      const latest = res.data?.latest_interactions?.[0];
+      dispatch(
+        addMessage({
+          role: "assistant",
+          content: latest
+            ? `📌 Context loaded. Latest interaction: sentiment=${latest.sentiment}, products=${latest.products_discussed || "-"}, follow_ups=${latest.follow_ups || "-"}`
+            : "📌 Context loaded. No interactions found yet.",
+        })
+      );
+
+      dispatch(setLastToolUsed("RetrieveHCPContextTool"));
+    } catch (e) {
+      dispatch(addMessage({ role: "assistant", content: "❌ Context fetch failed. Check backend or HCP name." }));
+    }
   }
 
   async function sendChat() {
@@ -416,6 +447,42 @@ export default function LogInteractionPage() {
 
           <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280" }}>
             Corrections example: “Sorry, sentiment is negative and follow-up is send brochure tomorrow.”
+          </div>
+
+          {hcpContext && (
+  <div
+    style={{
+      marginTop: 12,
+      border: "1px solid #e5e7eb",
+      borderRadius: 12,
+      padding: 12,
+      background: "#fff",
+    }}
+  >
+    <div style={{ fontWeight: 700, marginBottom: 8 }}>HCP Context</div>
+
+    <div style={{ fontSize: 13, color: "#111827" }}>
+      <div><b>Name:</b> {hcpContext.hcp?.name}</div>
+      <div><b>Specialty:</b> {hcpContext.hcp?.specialty || "-"}</div>
+      <div><b>City:</b> {hcpContext.hcp?.city || "-"}</div>
+    </div>
+
+    <div style={{ marginTop: 10, fontWeight: 600 }}>Recent Interactions</div>
+    <ul style={{ marginTop: 6, paddingLeft: 18, fontSize: 13, color: "#111827" }}>
+      {(hcpContext.latest_interactions || []).map((i) => (
+        <li key={i.id}>
+          #{i.id} • {i.created_at} • {i.sentiment} • {i.products_discussed || "-"} • {i.follow_ups || "-"}
+        </li>
+      ))}
+    </ul>
+  </div>
+)}
+
+
+          <div style={{ marginTop: 12 }}>
+          <Button variant="secondary" onClick={toolHcpContextFrontend} disabled={!draft.hcp_name}>
+            Tool: Retrieve HCP Context
+          </Button>
           </div>
         </Card>
       </div>

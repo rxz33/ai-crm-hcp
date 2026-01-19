@@ -463,8 +463,8 @@ export default function LogInteractionPage() {
 
     <div style={{ fontSize: 13, color: "#111827" }}>
       <div><b>Name:</b> {hcpContext.hcp?.name}</div>
-      <div><b>Specialty:</b> {hcpContext.hcp?.specialty || "-"}</div>
-      <div><b>City:</b> {hcpContext.hcp?.city || "-"}</div>
+      {/* <div><b>Specialty:</b> {hcpContext.hcp?.specialty || "-"}</div>
+      <div><b>City:</b> {hcpContext.hcp?.city || "-"}</div> */}
     </div>
 
     <div style={{ marginTop: 10, fontWeight: 600 }}>Recent Interactions</div>

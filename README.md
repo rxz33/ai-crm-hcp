@@ -1,4 +1,3 @@
-````md
 # AI-First CRM — HCP Interaction Logger (LangGraph + Groq)
 
 This project is an AI-first CRM workflow for logging HCP (Health Care Professional) interactions.  
@@ -6,7 +5,7 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## Key Requirements (Assignment)
+## Key Requirements 
 
 **Important:** The app is designed to be *AI-first* and *chat-first*.
 
@@ -63,7 +62,6 @@ python -m venv .venv
 .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 uvicorn app.main:app --reload
-````
 
 Backend:
 

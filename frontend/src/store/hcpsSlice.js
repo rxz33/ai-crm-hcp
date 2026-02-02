@@ -2,7 +2,7 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 import axios from "axios";
 
 // const API = "http://localhost:8000";
-const API = "https://ai-crm-hcp-backend.onrender.com/";
+const API = "https://ai-crm-hcp-backend.onrender.com";
 
 export const fetchHcps = createAsyncThunk("hcps/fetch", async () => {
   const res = await axios.get(`${API}/hcps`);

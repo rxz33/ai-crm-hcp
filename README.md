@@ -52,7 +52,7 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## ▶Run Locally
+## Run Locally
 
 ### Backend (FastAPI)
 
@@ -62,8 +62,9 @@ python -m venv .venv
 .venv\Scripts\activate   # Windows
 pip install -r requirements.txt
 uvicorn app.main:app --reload
+```
 
-Backend:
+### Backend:
 
 * [http://localhost:8000](http://localhost:8000)
   Swagger:
@@ -173,5 +174,4 @@ git push -u origin main
 
 **Rashi Gupta** — `github@rxz33`
 
-```
 

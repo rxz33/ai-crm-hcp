@@ -1,10 +1,8 @@
-// frontend/src/store/draftSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialDraft = {
   interaction_type: "Meeting",
 
-  // video-style: no dropdown required; HCP name filled by AI
   hcp_name: "",
 
   date: "",
@@ -31,7 +29,7 @@ const draftSlice = createSlice({
   initialState: { value: initialDraft },
   reducers: {
     setDraft: (state, action) => {
-      state.value = action.payload; // IMPORTANT
+      state.value = action.payload; 
     },
     setField: (state, action) => {
       const { key, value } = action.payload;

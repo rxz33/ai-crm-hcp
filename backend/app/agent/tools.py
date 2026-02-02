@@ -10,9 +10,8 @@ from app.agent.utils import resolve_hcp_by_name_or_id
 from langchain_core.messages import SystemMessage, HumanMessage
 from app.services.groq_client import get_llm
 
-# ============================================================
+
 # Tool 1: Log Interaction (required)
-# ============================================================
 
 def tool_log_interaction(db: Session, draft: Dict[str, Any]) -> Dict[str, Any]:
     # resolve HCP by id or name (video-style, no dropdown required)
@@ -62,9 +61,7 @@ def tool_log_interaction(db: Session, draft: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-# ============================================================
 # Tool 2: Edit Latest Interaction (required, no interaction_id in UI)
-# ============================================================
 
 def tool_edit_latest_interaction(
     db: Session,
@@ -108,9 +105,7 @@ def tool_edit_latest_interaction(
     }
 
 
-# ============================================================
 # Tool 3: Retrieve HCP Context
-# ============================================================
 
 def tool_retrieve_hcp_context(
     db: Session,
@@ -157,9 +152,7 @@ def tool_retrieve_hcp_context(
     }
 
 
-# ============================================================
 # Tool 4 + Tool 5 (LLM): Suggestions + Compliance in ONE call
-# ============================================================
 
 LLM_SUGGEST_COMPLIANCE_SYSTEM = """You are an AI CRM assistant for pharma sales reps.
 Task: produce follow-up suggestions and a lightweight compliance check.
@@ -272,10 +265,6 @@ def tool_suggestions_and_compliance_llm(
 
     return {"_ai_suggestions": uniq, "_compliance": {"status": status, "issues": issues}}
 
-
-# ============================================================
-# Backward-compatible wrappers (so your existing routes still work)
-# ============================================================
 
 def tool_followup_suggestions(draft: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> List[str]:
     return tool_suggestions_and_compliance_llm(draft, context=context)["_ai_suggestions"]

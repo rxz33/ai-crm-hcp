@@ -6,9 +6,9 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## ✅ Key Requirements (Assignment)
+## Key Requirements (Assignment)
 
-> **Important:** The app is designed to be *AI-first* and *chat-first*.
+**Important:** The app is designed to be *AI-first* and *chat-first*.
 
 - The left **Structured Interaction Form** is **read-only / locked**
 - The rep does **not** manually fill form fields
@@ -17,7 +17,7 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## 🧰 Tech Stack
+## Tech Stack
 
 - **Frontend:** React + Redux + Vite  
 - **Backend:** FastAPI + SQLAlchemy + SQLite  
@@ -25,7 +25,7 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## ✨ Features
+## Features
 
 ### Chat → Draft Autofill
 - Extracts HCP name, interaction details, sentiment, topics, materials, samples, follow-ups, etc.
@@ -33,7 +33,7 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## 🛠️ 5 Sales Tools (LangGraph Agent Tools)
+## 5 Sales Tools (LangGraph Agent Tools)
 
 1. **Log Interaction (Required)**
    - Validates required data and writes an Interaction to the DB
@@ -53,7 +53,7 @@ The UI is chat-driven: the rep types a conversational note, the agent extracts s
 
 ---
 
-## ▶️ Run Locally
+## ▶Run Locally
 
 ### Backend (FastAPI)
 
@@ -71,7 +71,7 @@ Backend:
   Swagger:
 * [http://localhost:8000/docs](http://localhost:8000/docs)
 
-> ⚠️ **Note:** Set your Groq API key in environment variables (do not commit it).
+> **Note:** Set your Groq API key in environment variables (do not commit it).
 
 ---
 
@@ -89,7 +89,7 @@ Frontend:
 
 ---
 
-## 🧪 Demo Flow (How to Test)
+## Demo Flow (How to Test)
 
 ### 1) Draft Autofill (Chat-only)
 
@@ -97,7 +97,7 @@ Paste into chat:
 
 > Met Dr. Asha Sharma today at 16:30. Attendees: Dr. Asha, Nurse Anita. Topics: dosing and efficacy of CardioPlus. Shared CardioPlus Brochure. Gave CardioPlus 10 tabs. Sentiment positive. Follow-up: schedule revisit in 2 weeks.
 
-✅ Expected:
+Expected:
 
 * Left form auto-fills
 * AI Suggestions appear
@@ -109,7 +109,7 @@ Paste into chat:
 
 Click **Log**
 
-✅ Expected:
+Expected:
 
 * “Logged successfully” message in chat
 
@@ -121,7 +121,7 @@ Send in chat:
 
 > Sorry, for Dr. Asha Sharma sentiment is negative and follow-up should be send updated brochure tomorrow.
 
-✅ Expected:
+Expected:
 
 * Backend edits latest interaction for that HCP
 * Form updates to reflect the corrected values
@@ -134,13 +134,13 @@ Open Swagger and call:
 
 `GET /agent/tools/hcp-context?hcp_name=Dr.%20Asha%20Sharma`
 
-✅ Expected:
+Expected:
 
 * Recent interactions list for that HCP
 
 ---
 
-## 📝 Project Notes
+## Project Notes
 
 * Interaction IDs are managed internally in backend; UI remains conversational.
 * SQLite DB file is not committed.
@@ -148,7 +148,7 @@ Open Swagger and call:
 
 ---
 
-## 🚀 Push to GitHub
+## Push to GitHub
 
 From the repo root:
 
@@ -163,7 +163,7 @@ git push -u origin main
 
 ---
 
-## 🔒 Important Warning (Before You Push)
+## Important Warning (Before You Push)
 
 * Remove any hardcoded API keys
 * Ensure `.env` is ignored

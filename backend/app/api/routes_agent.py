@@ -14,10 +14,7 @@ from app.agent.tools import (
 
 router = APIRouter(prefix="/agent", tags=["agent"])
 
-
-# ----------------------------
 # Chat (LangGraph orchestrator)
-# ----------------------------
 @router.post("/chat")
 def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[str, Any]:
     message = (payload.get("message") or "").strip()
@@ -45,7 +42,7 @@ def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[s
     if tool_used == "EditInteraction" and updated_draft.get("_edit_payload"):
         ep = updated_draft["_edit_payload"] or {}
 
-        # ✅ fallback: if user didn't repeat the HCP name in edit message, use current draft hcp_name
+        # fallback: if user didn't repeat the HCP name in edit message, use current draft hcp_name
         hcp_name_for_edit = ep.get("hcp_name") or updated_draft.get("hcp_name")
         hcp_id_for_edit = ep.get("hcp_id") or updated_draft.get("hcp_id")
 
@@ -62,7 +59,7 @@ def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[s
             assistant_message = result.get("message", "Updated latest interaction.")
             updated_draft["_last_edited_interaction_id"] = result.get("interaction_id")
 
-            # ✅ Refresh UI draft from latest DB record
+            # Refresh UI draft from latest DB record
             # Prefer hcp_id if available; else use hcp_name
             ctx = None
             hcp_id_for_ctx = result.get("hcp_id") or hcp_id_for_edit or updated_draft.get("hcp_id")
@@ -93,9 +90,8 @@ def agent_chat(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[s
     }
 
 
-# ----------------------------
 # Tool 1: Log Interaction (DB write)
-# ----------------------------
+
 @router.post("/tools/log")
 def tools_log(draft: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[str, Any]:
     result = tool_log_interaction(db, draft)
@@ -104,9 +100,8 @@ def tools_log(draft: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[str,
     return result
 
 
-# ----------------------------
 # Tool 2: Edit Latest Interaction (no interaction_id)
-# ----------------------------
+
 @router.post("/tools/edit-latest")
 def tools_edit_latest(payload: Dict[str, Any], db: Session = Depends(get_db)) -> Dict[str, Any]:
     """
@@ -133,9 +128,8 @@ def tools_edit_latest(payload: Dict[str, Any], db: Session = Depends(get_db)) ->
     return result
 
 
-# ----------------------------
 # Tool 3: Retrieve HCP Context
-# ----------------------------
+
 @router.get("/tools/hcp-context")
 def tools_hcp_context(hcp_id: Optional[int] = None, hcp_name: Optional[str] = None, db: Session = Depends(get_db)) -> Dict[str, Any]:
     result = tool_retrieve_hcp_context(db, hcp_id=hcp_id, hcp_name=hcp_name)
@@ -144,9 +138,8 @@ def tools_hcp_context(hcp_id: Optional[int] = None, hcp_name: Optional[str] = No
     return result
 
 
-# ----------------------------
 # Tool 4: Follow-up Suggestions
-# ----------------------------
+
 @router.post("/tools/followup-suggest")
 def tools_followup_suggest(payload: Dict[str, Any]) -> Dict[str, Any]:
     draft = payload.get("draft") or {}
@@ -155,9 +148,8 @@ def tools_followup_suggest(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {"_ai_suggestions": suggestions}
 
 
-# ----------------------------
 # Tool 5: Compliance Check
-# ----------------------------
+
 @router.post("/tools/compliance-check")
 def tools_compliance_check(payload: Dict[str, Any]) -> Dict[str, Any]:
     draft = payload.get("draft") or {}

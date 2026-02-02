@@ -36,9 +36,8 @@ class AgentState(TypedDict):
 llm = get_llm("extract")
 
 
-# ----------------------------
 # Helper: Merge parsed into draft
-# ----------------------------
+
 def merge_into_draft(draft: Dict[str, Any], parsed: Dict[str, Any]) -> Dict[str, Any]:
     # Remove routing keys that shouldn't be merged directly
     parsed = dict(parsed or {})
@@ -55,9 +54,8 @@ def merge_into_draft(draft: Dict[str, Any], parsed: Dict[str, Any]) -> Dict[str,
     return draft
 
 
-# ----------------------------
+
 # Helper: Normalize draft fields (runs on ALL paths)
-# ----------------------------
 def normalize_draft_fields(draft: Dict[str, Any]) -> Dict[str, Any]:
     def _now():
         return datetime.now(ZoneInfo("Asia/Kolkata")) if ZoneInfo else datetime.now()
@@ -97,9 +95,8 @@ def normalize_draft_fields(draft: Dict[str, Any]) -> Dict[str, Any]:
     return draft
 
 
-# ----------------------------
+
 # Node 1: Extract (LLM -> JSON)
-# ----------------------------
 def extract_node(state: AgentState) -> AgentState:
     prompt = [
         SystemMessage(content=SYSTEM_PROMPT),
@@ -123,9 +120,7 @@ def extract_node(state: AgentState) -> AgentState:
     return state
 
 
-# ----------------------------
 # Node 2: Draft Update (merge + normalize + suggestions + compliance)
-# ----------------------------
 def draft_update_node(state: AgentState) -> AgentState:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     draft = state.get("draft", {}) or {}
@@ -152,9 +147,7 @@ def draft_update_node(state: AgentState) -> AgentState:
     return state
 
 
-# ----------------------------
 # Node 3: Edit intent packaging (no DB write here)
-# ----------------------------
 def edit_intent_node(state: AgentState) -> AgentState:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     draft = state.get("draft", {}) or {}
@@ -182,9 +175,8 @@ def edit_intent_node(state: AgentState) -> AgentState:
     return state
 
 
-# ----------------------------
+
 # Node 4: Log intent packaging (no DB write here)
-# ----------------------------
 def log_intent_node(state: AgentState) -> AgentState:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     draft = state.get("draft", {}) or {}
@@ -202,9 +194,7 @@ def log_intent_node(state: AgentState) -> AgentState:
     return state
 
 
-# ----------------------------
 # Router: decide which path to take
-# ----------------------------
 def decide_node(state: AgentState) -> str:
     parsed = state.get("extracted", {}).get("parsed", {}) or {}
     action = (parsed.get("action") or "draft").lower()
@@ -216,9 +206,7 @@ def decide_node(state: AgentState) -> str:
     return "draft"
 
 
-# ----------------------------
 # Build graph
-# ----------------------------
 def build_graph():
     g = StateGraph(AgentState)
 

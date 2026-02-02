@@ -203,12 +203,12 @@ export default function LogInteractionPage() {
 
     try {
       const res = await axios.post(`${API}/agent/tools/log`, draft);
-      dispatch(addMessage({ role: "assistant", content: `✅ Logged successfully.` }));
+      dispatch(addMessage({ role: "assistant", content: `Logged successfully.` }));
       dispatch(setLastToolUsed("LogInteraction"));
       // optional: store last logged id in draft (for debugging only)
       dispatch(setDraft({ ...draft, _last_logged_interaction_id: res.data.interaction_id }));
     } catch (e) {
-      dispatch(addMessage({ role: "assistant", content: `❌ Log failed: ${e?.response?.data?.detail || "unknown error"}` }));
+      dispatch(addMessage({ role: "assistant", content: `Log failed: ${e?.response?.data?.detail || "unknown error"}` }));
     }
   }
 

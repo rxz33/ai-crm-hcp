@@ -4,7 +4,8 @@ import axios from "axios";
 import { setDraft, resetDraft } from "../store/draftSlice";
 import { addMessage, setLoading, setLastToolUsed, resetChat } from "../store/chatSlice";
 
-const API = "https://ai-crm-hcp-backend.onrender.com";
+const API = "http://localhost:8000";
+// const API = "https://ai-crm-hcp-backend.onrender.com";
 const FORM_LOCKED = true;
 
 function Field({ label, children }) {

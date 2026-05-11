@@ -113,6 +113,7 @@ export default function LogInteractionPage() {
 
   const [chatInput, setChatInput] = useState("");
   const [hcpContext, setHcpContext] = useState(null);
+  const [showWelcome, setShowWelcome] = useState(true);
 
   function resetAll() {
     dispatch(resetDraft());
@@ -215,6 +216,37 @@ export default function LogInteractionPage() {
 
   return (
     <div style={{ padding: 20, maxWidth: 1200, margin: "0 auto" }}>
+      {/* Welcome Modal */}
+      {showWelcome && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, width: "100%", height: "100%",
+          background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+          display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000,
+          padding: 20
+        }}>
+          <div style={{
+            background: "white", borderRadius: 24, padding: 40, maxWidth: 500,
+            boxShadow: "0 20px 50px rgba(0,0,0,0.2)", textAlign: "center"
+          }}>
+            <div style={{ fontSize: 40, marginBottom: 20 }}>👋</div>
+            <div style={{ fontSize: 24, fontWeight: 900, color: "#111827", marginBottom: 12 }}>
+              Welcome to AI-First CRM
+            </div>
+            <div style={{ fontSize: 15, color: "#4b5563", lineHeight: "1.6", marginBottom: 30 }}>
+              This is a specialized module for Pharma Reps to log HCP interactions. 
+              Instead of filling tedious forms, just <b>chat with the AI assistant</b> on the right. 
+              It will automatically fill the structured data, check compliance, and suggest next steps.
+            </div>
+            <Button style={{ width: "100%", padding: "14px", fontSize: 16 }} onClick={() => setShowWelcome(false)}>
+              Get Started
+            </Button>
+            <div style={{ marginTop: 20, fontSize: 12, color: "#9ca3af" }}>
+              Developed as a technical showcase for LangGraph + Groq integration.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
         <div>
@@ -448,6 +480,48 @@ export default function LogInteractionPage() {
 
           <div style={{ marginTop: 10, fontSize: 13, color: "#6b7280" }}>
             Corrections example: “Sorry, sentiment is negative and follow-up is send brochure tomorrow.”
+          </div>
+
+          <div style={{ marginTop: 20, borderTop: "2px solid #f1f5f9", paddingTop: 20 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: "#111827", marginBottom: 12, display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "#10b981" }}></span>
+              Feature Tour: How to Test
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              {[
+                { label: "1. Draft Interaction", text: "Met Dr. Asha Sharma today at 10 AM. Discussed CardioPlus efficacy. Positive.", desc: "Extracts data from chat" },
+                { label: "2. Correct / Edit", text: "Wait, for Dr. Asha the sentiment was actually neutral.", desc: "Updates latest record" },
+                { label: "3. Compliance Check", text: "Dr. Asha said CardioPlus is a 100% guaranteed cure.", desc: "Flags risky claims" },
+                { label: "4. AI Suggestions", text: "Tell me more about the meeting with Dr. Asha.", desc: "Generates follow-ups" },
+              ].map((item, i) => (
+                <div 
+                  key={i} 
+                  onClick={() => setChatInput(item.text)}
+                  style={{ 
+                    padding: 10, 
+                    borderRadius: 12, 
+                    border: "1px solid #eef2f6", 
+                    background: "white", 
+                    cursor: "pointer",
+                    transition: "all 0.2s ease"
+                  }}
+                  onMouseOver={(e) => { e.currentTarget.style.borderColor = "#111827"; e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.05)"; }}
+                  onMouseOut={(e) => { e.currentTarget.style.borderColor = "#eef2f6"; e.currentTarget.style.boxShadow = "none"; }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111827", marginBottom: 2 }}>{item.label}</div>
+                  <div style={{ fontSize: 11, color: "#6b7280" }}>{item.desc}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginTop: 12, padding: 10, borderRadius: 12, background: "#f8fafc", border: "1px dashed #cbd5e1" }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#475569", marginBottom: 4 }}>5. Log & 6. Context Tools:</div>
+              <div style={{ fontSize: 11, color: "#64748b", lineHeight: "1.4" }}>
+                • Click <b>"Log"</b> (top right) to save the current draft to DB. <br/>
+                • Click <b>"Retrieve HCP Context"</b> (below) to fetch history.
+              </div>
+            </div>
           </div>
 
           {hcpContext && (
